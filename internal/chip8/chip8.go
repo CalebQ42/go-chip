@@ -55,6 +55,7 @@ func (c *Chip8) Start() {
 		go func() {
 			c.soundTicker.Stop()
 			for {
+				fmt.Print('\a')
 				<-c.delayTicker.C
 				c.soundReg--
 				if c.delayReg == 0 {
@@ -64,11 +65,10 @@ func (c *Chip8) Start() {
 			}
 		}()
 	}
-	// c.screen.StartPrinting()
 	c.running = true
+	go c.screen.StartPrinting()
 	for c.running {
-		fmt.Println(c.screen)
-		time.Sleep(time.Second / 2)
+		time.Sleep(time.Second / 60)
 		c.nextInstruction()
 	}
 
@@ -152,7 +152,13 @@ func (c *Chip8) handleInstruction(ins uint16) {
 	case 0xC:
 		c.registers[(ins>>8)&0xF] = byte(rand.UintN(256)) & byte(ins&0xFF)
 	case 0xD:
-		//TODO: Add sprite to screen
+		sprite := make([]byte, ins&0xF)
+		copy(sprite, c.memory[c.iRegister:])
+		if c.screen.AddSprite(sprite, c.registers[(ins>>8)&0xF], c.registers[(ins>>4)&0xF]) {
+			c.registers[0xF] = 1
+		} else {
+			c.registers[0xF] = 0
+		}
 	case 0xE:
 		//TODO: Handle keyboard. skip instructions
 	case 0xF:
@@ -222,6 +228,7 @@ func (c *Chip8) leftovers(ins uint16) {
 		c.registers[x] = c.delayReg
 	case 0xA:
 		//TODO: wait until keyboard button is pressed
+		time.Sleep(20 * time.Second)
 	case 0x15:
 		c.setDelayTime(c.registers[x])
 	case 0x18:
@@ -229,7 +236,7 @@ func (c *Chip8) leftovers(ins uint16) {
 	case 0x1E:
 		c.iRegister += uint16(c.registers[x])
 	case 0x29:
-		//TODO: set iRegister to sprite represented in register[x]
+		c.iRegister = 5 * uint16(c.registers[x])
 	case 0x33:
 		c.memory[c.iRegister] = (c.registers[x] / 100) % 10
 		c.memory[c.iRegister+1] = (c.registers[x] / 10) % 10
