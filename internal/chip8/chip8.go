@@ -10,13 +10,17 @@ import (
 )
 
 type Chip8 struct {
-	pc        *uint16
-	screen    *Screen
-	stack     []*uint16
-	running   bool
-	iRegister uint16
-	memory    Ram
-	registers [16]byte
+	delayTicker *time.Ticker
+	soundTicker *time.Ticker
+	pc          *uint16
+	screen      *Screen
+	stack       []*uint16
+	running     bool
+	iRegister   uint16
+	memory      Ram
+	registers   [16]byte
+	delayReg    byte
+	soundReg    byte
 }
 
 func NewChip8(rom io.Reader) (*Chip8, error) {
@@ -33,18 +37,66 @@ func NewChip8(rom io.Reader) (*Chip8, error) {
 }
 
 func (c *Chip8) Start() {
+	if c.delayTicker == nil {
+		c.delayTicker = time.NewTicker(time.Second / 60)
+		go func() {
+			c.delayTicker.Stop()
+			for {
+				<-c.delayTicker.C
+				c.delayReg--
+				if c.delayReg == 0 {
+					c.delayTicker.Stop()
+				}
+			}
+		}()
+	}
+	if c.soundTicker == nil {
+		c.soundTicker = time.NewTicker(time.Second / 60)
+		go func() {
+			c.soundTicker.Stop()
+			for {
+				<-c.delayTicker.C
+				c.soundReg--
+				if c.delayReg == 0 {
+					c.delayTicker.Stop()
+					//TODO: stop sound
+				}
+			}
+		}()
+	}
 	// c.screen.StartPrinting()
 	c.running = true
 	for c.running {
 		fmt.Println(c.screen)
 		time.Sleep(time.Second / 2)
 		c.nextInstruction()
-
 	}
+
+}
+func (c *Chip8) Stop() {
+	c.running = false
 }
 
 func (c *Chip8) PrintRegisters() {
 	fmt.Println(c.registers)
+}
+
+func (c *Chip8) setDelayTime(t byte) {
+	if c.delayReg > 0 {
+		c.delayReg = t
+		return
+	}
+	c.delayReg = t
+	c.delayTicker.Reset(time.Second / 60)
+}
+
+func (c *Chip8) setSoundTime(t byte) {
+	if c.soundReg > 0 {
+		c.soundReg = t
+		return
+	}
+	c.soundReg = t
+	c.soundTicker.Reset(time.Second / 60)
 }
 
 func (c *Chip8) nextInstruction() {
@@ -107,7 +159,7 @@ func (c *Chip8) handleInstruction(ins uint16) {
 		//0xF instructions are kind of random. we just group them together
 		c.leftovers(ins)
 	default:
-
+		log.Fatalln("invalid instruction:", ins)
 	}
 }
 
@@ -158,9 +210,39 @@ func (c *Chip8) multiRegisterMath(ins uint16) {
 			c.registers[0xF] = 0
 		}
 		c.registers[x] *= 2
+	default:
+		log.Fatalln("invalid instruction:", ins)
 	}
 }
 
 func (c *Chip8) leftovers(ins uint16) {
-	//TODO
+	x := (ins >> 8) & 0xF
+	switch ins & 0xFF {
+	case 7:
+		c.registers[x] = c.delayReg
+	case 0xA:
+		//TODO: wait until keyboard button is pressed
+	case 0x15:
+		c.setDelayTime(c.registers[x])
+	case 0x18:
+		c.setSoundTime(c.registers[x])
+	case 0x1E:
+		c.iRegister += uint16(c.registers[x])
+	case 0x29:
+		//TODO: set iRegister to sprite represented in register[x]
+	case 0x33:
+		c.memory[c.iRegister] = (c.registers[x] / 100) % 10
+		c.memory[c.iRegister+1] = (c.registers[x] / 10) % 10
+		c.memory[c.iRegister+2] = c.registers[x] % 10
+	case 0x55:
+		for i := uint16(0); i <= x; i++ {
+			c.memory[c.iRegister+i] = c.registers[i]
+		}
+	case 0x65:
+		for i := uint16(0); i <= x; i++ {
+			c.registers[i] = c.memory[c.iRegister+i]
+		}
+	default:
+		log.Fatalln("invalid instruction:", ins)
+	}
 }
