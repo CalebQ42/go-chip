@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/binary"
 	"flag"
 	"log"
 	"os"
@@ -18,10 +17,10 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var ins uint16
-	binary.Read(rom, binary.BigEndian, &ins)
-	log.Printf("%x", ins)
-	ram := chip8.InitRam()
-	_ = ram
+	comp, err := chip8.NewChip8(rom)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	comp.Start()
 	// TODO
 }

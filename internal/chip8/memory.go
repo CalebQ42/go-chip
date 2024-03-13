@@ -23,10 +23,11 @@ var (
 
 type Ram [4096]byte
 
-func InitRam() *Ram {
+func InitRam(rom []byte) Ram {
 	r := Ram{}
 	for i := 0; i < len(hexSprites); i++ {
 		copy(r[5*i:], hexSprites[i])
 	}
-	return &r
+	copy(r[512:], rom)
+	return r
 }
