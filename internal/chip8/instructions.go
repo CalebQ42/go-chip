@@ -1,12 +1,12 @@
 package chip8
 
 import (
+	"fmt"
 	"log"
 	"math/rand/v2"
-	"time"
 )
 
-func (c *Chip8) handleInstruction(ins uint16) {
+func (c *Chip8) handleInstruction(ins uint16) bool {
 	switch ins >> 12 {
 	case 0:
 		if ins == 0x00EE {
@@ -14,6 +14,7 @@ func (c *Chip8) handleInstruction(ins uint16) {
 			c.stack = c.stack[:len(c.stack)-1]
 		} else if ins == 0x00E0 {
 			c.screen.Clear()
+			return true
 		} else {
 			log.Fatalf("invalid instruction: %x", ins)
 		}
@@ -59,14 +60,26 @@ func (c *Chip8) handleInstruction(ins uint16) {
 		} else {
 			c.registers[0xF] = 0
 		}
+		return true
 	case 0xE:
-		//TODO: Handle keyboard. skip instructions
+		if ins&0xFF == 0x9E {
+			if c.checkKeyDown(c.registers[(ins>>8)&0xF]) {
+				*c.pc += 2
+			}
+		} else if ins&0xFF == 0xA1 {
+			if !c.checkKeyDown(c.registers[(ins>>8)&0xF]) {
+				*c.pc += 2
+			}
+		} else {
+			log.Fatalf("invalid instruction: %x", ins)
+		}
 	case 0xF:
 		//0xF instructions are kind of random. we just group them together
-		c.leftovers(ins)
+		return c.leftovers(ins)
 	default:
-		log.Fatalln("invalid instruction:", ins)
+		log.Fatalf("invalid instruction: %x", ins)
 	}
+	return false
 }
 
 func (c *Chip8) multiRegisterMath(ins uint16) {
@@ -117,18 +130,24 @@ func (c *Chip8) multiRegisterMath(ins uint16) {
 		}
 		c.registers[x] *= 2
 	default:
-		log.Fatalln("invalid instruction:", ins)
+		log.Fatalf("invalid instruction: %x", ins)
 	}
 }
 
-func (c *Chip8) leftovers(ins uint16) {
+func (c *Chip8) leftovers(ins uint16) bool {
 	x := (ins >> 8) & 0xF
 	switch ins & 0xFF {
 	case 7:
 		c.registers[x] = c.delayReg
 	case 0xA:
-		//TODO: wait until keyboard button is pressed
-		time.Sleep(20 * time.Second)
+		// Wait for a keyboard input and then set it's value to c.registers[x]
+		c.keyboardBlock = make(chan byte)
+		go func() {
+			c.registers[x] = <-c.keyboardBlock
+			fmt.Printf("%x\n", c.registers[x])
+			c.keyboardBlock = nil
+		}()
+		return true
 	case 0x15:
 		c.setDelayTime(c.registers[x])
 	case 0x18:
@@ -150,6 +169,7 @@ func (c *Chip8) leftovers(ins uint16) {
 			c.registers[i] = c.memory[c.iRegister+i]
 		}
 	default:
-		log.Fatalln("invalid instruction:", ins)
+		log.Fatalf("invalid instruction: %x", ins)
 	}
+	return false
 }

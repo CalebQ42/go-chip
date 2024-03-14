@@ -2,20 +2,27 @@ package chip8
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
-	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type Screen struct {
-	t        *time.Ticker
-	waitChan chan struct{}
-	screen   [32][8]byte
+	screen [32][8]byte
 }
 
-func NewScreen() *Screen {
-	return &Screen{
-		t:        time.NewTicker(time.Second / 60),
-		waitChan: make(chan struct{}),
+func (s *Screen) DrawTo(screen *ebiten.Image) {
+	for y := range s.screen {
+		for x := range s.screen[y] {
+			for i := 0; i < 8; i++ {
+				if s.screen[y][x]>>(7-i)&1 == 1 {
+					screen.Set((x*8)+i, y, color.White)
+				} else {
+					screen.Set((x*8)+i, y, color.Black)
+				}
+			}
+		}
 	}
 }
 
@@ -44,7 +51,6 @@ func (s *Screen) Clear() {
 			s.screen[y][x] = 0
 		}
 	}
-	s.waitChan <- struct{}{}
 }
 
 func (s *Screen) AddSprite(sprite []byte, x, y byte) bool {
@@ -74,16 +80,4 @@ func (s *Screen) AddSprite(sprite []byte, x, y byte) bool {
 		}
 	}
 	return erased
-}
-
-func (s *Screen) StartPrinting() {
-	fmt.Print("\x1b[2J") // Clear terminal
-	for {
-		fmt.Print("\x1b[H")
-		<-s.t.C
-		for i := 0; i < len(s.waitChan); i++ {
-			<-s.waitChan
-		}
-		s.PrintScreen()
-	}
 }
