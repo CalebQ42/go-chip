@@ -119,22 +119,39 @@ func (c *Chip8) Layout(_, _ int) (int, int) {
 }
 
 func (c *Chip8) checkKeyDown(key byte) bool {
-	if key <= 9 {
-		return ebiten.IsKeyPressed(ebiten.Key0+ebiten.Key(key)) || ebiten.IsKeyPressed(ebiten.KeyKP0+ebiten.Key(key))
-	}
 	switch key {
+	case 0:
+		return ebiten.IsKeyPressed(ebiten.KeyX)
+	case 1:
+		return ebiten.IsKeyPressed(ebiten.Key1)
+	case 2:
+		return ebiten.IsKeyPressed(ebiten.Key2)
+	case 3:
+		return ebiten.IsKeyPressed(ebiten.Key3)
+	case 4:
+		return ebiten.IsKeyPressed(ebiten.KeyQ)
+	case 5:
+		return ebiten.IsKeyPressed(ebiten.KeyW)
+	case 6:
+		return ebiten.IsKeyPressed(ebiten.KeyE)
+	case 7:
+		return ebiten.IsKeyPressed(ebiten.KeyA)
+	case 8:
+		return ebiten.IsKeyPressed(ebiten.KeyS)
+	case 9:
+		return ebiten.IsKeyPressed(ebiten.KeyD)
 	case 0xA:
-		return ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyKPDecimal)
+		return ebiten.IsKeyPressed(ebiten.KeyZ)
 	case 0xB:
-		return ebiten.IsKeyPressed(ebiten.KeyB) || ebiten.IsKeyPressed(ebiten.KeyKPEnter)
+		return ebiten.IsKeyPressed(ebiten.KeyC)
 	case 0xC:
-		return ebiten.IsKeyPressed(ebiten.KeyC) || ebiten.IsKeyPressed(ebiten.KeyKPDivide)
+		return ebiten.IsKeyPressed(ebiten.Key4)
 	case 0xD:
-		return ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyKPMultiply)
+		return ebiten.IsKeyPressed(ebiten.KeyR)
 	case 0xE:
-		return ebiten.IsKeyPressed(ebiten.KeyE) || ebiten.IsKeyPressed(ebiten.KeyKPSubtract)
+		return ebiten.IsKeyPressed(ebiten.KeyF)
 	case 0xF:
-		return ebiten.IsKeyPressed(ebiten.KeyF) || ebiten.IsKeyPressed(ebiten.KeyKPEqual)
+		return ebiten.IsKeyPressed(ebiten.KeyV)
 	}
 	return false
 }

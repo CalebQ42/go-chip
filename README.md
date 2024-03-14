@@ -4,13 +4,13 @@ A chip-8 emulator. Special thanks to the technical documents [found here](http:/
 
 ## Keyboard
 
-0-9 and A-F keyboard keys are allowed. Additionally the keypad is allowed with A-F set to the operation keys.
+Chip-8 uses a 16 key keypad for input which is mapped to the keyboard:
 
-```
-A: Keypad Decimal
-B: Keypad Enter
-C: Keypad Divide
-D: Keypad Mulitply
-E: Keypad Subtract
-F: Keypad Add
+```text
+---------       ---------
+|1|2|3|C|   \   |1|2|3|4|
+|4|5|6|D|  ==\  |Q|W|E|R|
+|7|8|9|E|  ==/  |A|S|D|F|
+|A|0|B|F|   /   |Z|X|C|V|
+---------       ---------
 ```
