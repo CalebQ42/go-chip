@@ -13,11 +13,11 @@ import (
 type Chip8 struct {
 	delayTicker   *time.Ticker
 	soundTicker   *time.Ticker
-	pc            *uint16
 	screen        *Screen
 	keyboardBlock chan byte
 	keyState      map[byte]bool
-	stack         []*uint16
+	stack         []uint16
+	pc            uint16
 	iRegister     uint16
 	memory        Ram
 	registers     [16]byte
@@ -31,11 +31,10 @@ func NewChip8(rom io.Reader) (*Chip8, error) {
 	if err != nil {
 		return nil, err
 	}
-	initPC := uint16(512)
 	return &Chip8{
 		memory: InitRam(romDat),
 		screen: &Screen{},
-		pc:     &initPC,
+		pc:     512,
 	}, nil
 }
 
@@ -183,8 +182,7 @@ func (c *Chip8) setSoundTime(t byte) {
 }
 
 func (c *Chip8) nextInstruction() bool {
-	ins := binary.BigEndian.Uint16(c.memory[*c.pc:])
-	*c.pc += 2
-	// fmt.Printf("%x\n", ins)
+	ins := binary.BigEndian.Uint16(c.memory[c.pc:])
+	c.pc += 2
 	return c.handleInstruction(ins)
 }

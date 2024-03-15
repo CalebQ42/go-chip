@@ -1,12 +1,14 @@
 package chip8
 
 import (
-	"fmt"
 	"log"
 	"math/rand/v2"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func (c *Chip8) handleInstruction(ins uint16) bool {
+	reg_index := (ins >> 8) & 0xF
 	switch ins >> 12 {
 	case 0:
 		if ins == 0x00EE {
@@ -19,43 +21,42 @@ func (c *Chip8) handleInstruction(ins uint16) bool {
 			log.Fatalf("invalid instruction: %x", ins)
 		}
 	case 1:
-		*c.pc = ins & 0xFFF
+		c.pc = ins & 0xFFF
 	case 2:
-		newPC := uint16(ins & 0xFFF)
 		c.stack = append(c.stack, c.pc)
-		c.pc = &newPC
+		c.pc = ins & 0xFFF
 	case 3:
-		if c.registers[(ins>>8)&0xF] == byte(ins&0xFF) {
-			*c.pc += 2
+		if c.registers[reg_index] == byte(ins&0xFF) {
+			c.pc += 2
 		}
 	case 4:
-		if c.registers[(ins>>8)&0xF] != byte(ins&0xFF) {
-			*c.pc += 2
+		if c.registers[reg_index] != byte(ins&0xFF) {
+			c.pc += 2
 		}
 	case 5:
-		if c.registers[(ins>>8)&0xF] == c.registers[(ins>>4)&0xF] {
-			*c.pc += 2
+		if c.registers[reg_index] == c.registers[(ins>>4)&0xF] {
+			c.pc += 2
 		}
 	case 6:
-		c.registers[(ins>>8)&0xF] = byte(ins & 0xFF)
+		c.registers[reg_index] = byte(ins & 0xFF)
 	case 7:
-		c.registers[(ins>>8)&0xF] += byte(ins & 0xFF)
+		c.registers[reg_index] += byte(ins & 0xFF)
 	case 8:
-		c.multiRegisterMath(ins)
+		c.multiRegisterMath(ins, reg_index)
 	case 9:
-		if c.registers[(ins>>8)&0xF] != c.registers[(ins>>4)&0xF] {
-			*c.pc += 2
+		if c.registers[reg_index] != c.registers[(ins>>4)&0xF] {
+			c.pc += 2
 		}
 	case 0xA:
 		c.iRegister = ins & 0xFFF
 	case 0xB:
-		*c.pc = ins&0xFFF + uint16(c.registers[0])
+		c.pc = (ins & 0xFFF) + uint16(c.registers[0])
 	case 0xC:
-		c.registers[(ins>>8)&0xF] = byte(rand.UintN(256)) & byte(ins&0xFF)
+		c.registers[reg_index] = byte(rand.UintN(256)) & byte(ins&0xFF)
 	case 0xD:
 		sprite := make([]byte, ins&0xF)
 		copy(sprite, c.memory[c.iRegister:])
-		if c.screen.AddSprite(sprite, c.registers[(ins>>8)&0xF], c.registers[(ins>>4)&0xF]) {
+		if c.screen.AddSprite(sprite, c.registers[reg_index], c.registers[(ins>>4)&0xF]) {
 			c.registers[0xF] = 1
 		} else {
 			c.registers[0xF] = 0
@@ -63,12 +64,12 @@ func (c *Chip8) handleInstruction(ins uint16) bool {
 		return true
 	case 0xE:
 		if ins&0xFF == 0x9E {
-			if c.checkKeyDown(c.registers[(ins>>8)&0xF]) {
-				*c.pc += 2
+			if c.checkKeyDown(c.registers[reg_index]) {
+				c.pc += 2
 			}
 		} else if ins&0xFF == 0xA1 {
-			if !c.checkKeyDown(c.registers[(ins>>8)&0xF]) {
-				*c.pc += 2
+			if !c.checkKeyDown(c.registers[reg_index]) {
+				c.pc += 2
 			}
 		} else {
 			log.Fatalf("invalid instruction: %x", ins)
@@ -82,8 +83,7 @@ func (c *Chip8) handleInstruction(ins uint16) bool {
 	return false
 }
 
-func (c *Chip8) multiRegisterMath(ins uint16) {
-	x := (ins >> 8) & 0xF
+func (c *Chip8) multiRegisterMath(ins uint16, x uint16) {
 	y := (ins >> 4) & 0xF
 	switch ins & 0xF {
 	case 0:
@@ -102,7 +102,7 @@ func (c *Chip8) multiRegisterMath(ins uint16) {
 		}
 		c.registers[x] += c.registers[y]
 	case 5:
-		if c.registers[x] > c.registers[y] {
+		if c.registers[x] >= c.registers[y] {
 			c.registers[0xF] = 1
 		} else {
 			c.registers[0xF] = 0
@@ -116,7 +116,7 @@ func (c *Chip8) multiRegisterMath(ins uint16) {
 		}
 		c.registers[x] /= 2
 	case 7:
-		if c.registers[y] > c.registers[x] {
+		if c.registers[y] >= c.registers[x] {
 			c.registers[0xF] = 1
 		} else {
 			c.registers[0xF] = 0
@@ -140,12 +140,13 @@ func (c *Chip8) leftovers(ins uint16) bool {
 	case 7:
 		c.registers[x] = c.delayReg
 	case 0xA:
+		ebiten.SetWindowTitle("Waiting for key press...")
 		// Wait for a keyboard input and then set it's value to c.registers[x]
 		c.keyboardBlock = make(chan byte)
 		go func() {
 			c.registers[x] = <-c.keyboardBlock
-			fmt.Printf("%x\n", c.registers[x])
 			c.keyboardBlock = nil
+			ebiten.SetWindowTitle("Chip-8")
 		}()
 		return true
 	case 0x15:
